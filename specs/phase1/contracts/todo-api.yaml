@@ -1,0 +1,198 @@
+openapi: 3.0.0
+info:
+  title: Todo CLI Internal API
+  description: Internal API for the Todo CLI application
+  version: 1.0.0
+paths:
+  /todos:
+    get:
+      summary: List all todos
+      description: Retrieve a list of all todos
+      responses:
+        '200':
+          description: A list of todos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+    post:
+      summary: Create a new todo
+      description: Create a new todo with the provided details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+      responses:
+        '201':
+          description: Todo created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid input
+  /todos/{id}:
+    get:
+      summary: Get a specific todo
+      description: Retrieve a specific todo by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Todo details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+    put:
+      summary: Update a todo
+      description: Update an existing todo with the provided details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoRequest'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+        '400':
+          description: Invalid input
+    delete:
+      summary: Delete a todo
+      description: Delete a specific todo by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Todo deleted successfully
+        '404':
+          description: Todo not found
+  /todos/{id}/complete:
+    post:
+      summary: Mark todo as complete
+      description: Mark a specific todo as completed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Todo marked as complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+  /todos/{id}/reopen:
+    post:
+      summary: Mark todo as incomplete
+      description: Mark a specific completed todo as incomplete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Todo marked as incomplete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - id
+        - title
+        - completed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the todo
+        title:
+          type: string
+          description: Title of the todo task
+        description:
+          type: string
+          description: Optional description of the todo task
+          nullable: true
+        completed:
+          type: boolean
+          description: Completion status of the todo
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the todo was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the todo was last updated
+    CreateTodoRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Title of the todo task
+          example: "Buy groceries"
+        description:
+          type: string
+          description: Optional description of the todo task
+          example: "Milk, bread, eggs"
+          nullable: true
+    UpdateTodoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Updated title of the todo task
+          example: "Buy groceries"
+        description:
+          type: string
+          description: Updated description of the todo task
+          example: "Milk, bread, eggs"
+          nullable: true

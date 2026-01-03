@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync)",
+      "Bash(todo --help:*)",
+      "Bash(todo list)",
+      "Bash(todo)",
+      "Bash(python -m src.todo_cli.main)",
+      "Bash(python functionality_test.py)",
+      "Bash(python -m pip install -e .)",
+      "Skill(sp.phr)",
+      "Bash(dir .specifyscripts)",
+      "Bash(dir \".specify\\\\scripts\")",
+      "Bash(dir \".specify\\\\scripts\\\\powershell\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify\\\\scripts\\\\powershell\\\\setup-plan.ps1\" -Json)",
+      "Bash(findstr research)",
+      "Bash(dir)",
+      "Bash(dir data-model.md)"
+    ]
+  }
+}
