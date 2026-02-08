@@ -32,7 +32,7 @@ def authenticate_user() -> str:
             if user:
                 click.echo(f"Welcome to CLI Todo App")
                 click.echo(f"Hi, {username}")
-                click.echo(f"Total tasks: {task_service.get_total_task_count()}")
+                click.echo(f"Total tasks: {task_service.get_total_task_count(username)}")
                 return username
             else:
                 click.echo("Invalid password. Please try again.")
@@ -52,7 +52,7 @@ def authenticate_user() -> str:
             if success:
                 click.echo(f"Welcome to CLI Todo App")
                 click.echo(f"Hi, {username}")
-                click.echo(f"Total tasks: {task_service.get_total_task_count()}")
+                click.echo(f"Total tasks: {task_service.get_total_task_count(username)}")
                 return username
             else:
                 click.echo("Error creating account. Username may already exist. Please try again.")
@@ -75,7 +75,7 @@ def display_menu():
     click.echo("------------------")
 
 
-def add_task_flow():
+def add_task_flow(username):
     """
     Interactive flow for adding a new task
     """
@@ -109,8 +109,10 @@ def add_task_flow():
             due_date=due_date_str
         )
 
-        # Create the task
-        new_task = task_service.create_task(request)
+        # Create the task - need to pass username here
+        # Since we don't have the username in this context, we'll need to update the function call
+        # This will be handled by updating the calling function to pass the username
+        new_task = task_service.create_task(request, username)
 
         # Calculate remaining time
         remaining_time = new_task.get_remaining_time()
@@ -126,12 +128,12 @@ def add_task_flow():
         click.echo(f"Error: {e}")
 
 
-def view_tasks_flow():
+def view_tasks_flow(username):
     """
     Display all tasks
     """
     try:
-        tasks = task_service.get_all_tasks()
+        tasks = task_service.get_all_tasks(username)
         if not tasks:
             click.echo("No tasks found.")
             logger.info("No tasks found in the store")
@@ -154,7 +156,7 @@ def view_tasks_flow():
         click.echo(f"An error occurred: {e}")
 
 
-def update_task_flow():
+def update_task_flow(username):
     """
     Interactive flow for updating an existing task
     """
@@ -162,7 +164,7 @@ def update_task_flow():
         task_id = click.prompt('Enter task ID to update', type=int)
 
         # Get the current task to show current values
-        current_task = task_service.get_task(task_id)
+        current_task = task_service.get_task(task_id, username)
         if not current_task:
             click.echo(f"Task with ID {task_id} not found")
             logger.warning(f"Task with ID {task_id} not found for update")
@@ -179,7 +181,7 @@ def update_task_flow():
             new_description = None
 
         # Update the task
-        updated_task = task_service.update_task(task_id, new_title if new_title != current_task.title else None,
+        updated_task = task_service.update_task(task_id, username, new_title if new_title != current_task.title else None,
                                               new_description if new_description != current_task.description else None)
 
         if updated_task:
@@ -193,14 +195,14 @@ def update_task_flow():
         click.echo(f"Error: {e}")
 
 
-def delete_task_flow():
+def delete_task_flow(username):
     """
     Interactive flow for deleting a task
     """
     try:
         task_id = click.prompt('Enter task ID to delete', type=int)
 
-        success = task_service.delete_task(task_id)
+        success = task_service.delete_task(task_id, username)
         if success:
             click.echo(f"Deleted task with ID: {task_id}")
             logger.info(f"Successfully deleted task with ID: {task_id}")
@@ -212,7 +214,7 @@ def delete_task_flow():
         click.echo(f"An error occurred: {e}")
 
 
-def mark_complete_incomplete_flow():
+def mark_complete_incomplete_flow(username):
     """
     Interactive flow for marking a task as complete/incomplete
     """
@@ -220,7 +222,7 @@ def mark_complete_incomplete_flow():
         task_id = click.prompt('Enter task ID to toggle completion status', type=int)
 
         # Get current task to check current status
-        current_task = task_service.get_task(task_id)
+        current_task = task_service.get_task(task_id, username)
         if not current_task:
             click.echo(f"Task with ID {task_id} not found")
             logger.warning(f"Task with ID {task_id} not found for completion toggle")
@@ -228,11 +230,11 @@ def mark_complete_incomplete_flow():
 
         if current_task.status == 'completed':
             # Mark as incomplete
-            updated_task = task_service.mark_incomplete(task_id)
+            updated_task = task_service.mark_incomplete(task_id, username)
             action = "incomplete"
         else:
             # Mark as complete
-            updated_task = task_service.mark_complete(task_id)
+            updated_task = task_service.mark_complete(task_id, username)
             action = "complete"
 
         if updated_task:
@@ -246,7 +248,7 @@ def mark_complete_incomplete_flow():
         click.echo(f"An error occurred: {e}")
 
 
-def search_tasks_flow():
+def search_tasks_flow(username):
     """
     Interactive flow for searching/filtering tasks
     """
@@ -261,7 +263,7 @@ def search_tasks_flow():
             # It's a title search
             search_by = "title"
 
-        results = task_service.search_tasks(search_term, search_by)
+        results = task_service.search_tasks(search_term, username, search_by)
 
         if not results:
             click.echo(f"No tasks found matching '{search_term}'")
@@ -319,17 +321,17 @@ def main_menu_loop(username: str):
             choice = click.prompt('Select an option', type=click.Choice(['1', '2', '3', '4', '5', '6', '7', '8']), default='8')
 
             if choice == '1':
-                add_task_flow()
+                add_task_flow(username)
             elif choice == '2':
-                view_tasks_flow()
+                view_tasks_flow(username)
             elif choice == '3':
-                update_task_flow()
+                update_task_flow(username)
             elif choice == '4':
-                delete_task_flow()
+                delete_task_flow(username)
             elif choice == '5':
-                mark_complete_incomplete_flow()
+                mark_complete_incomplete_flow(username)
             elif choice == '6':
-                search_tasks_flow()
+                search_tasks_flow(username)
             elif choice == '7':
                 help_flow()
             elif choice == '8':
