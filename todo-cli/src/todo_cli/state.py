@@ -15,9 +15,9 @@ class FileTaskStore:
     def __init__(self, tasks_file="tasks.json", users_file="users.json"):
         self.tasks_file = tasks_file
         self.users_file = users_file
-        self._tasks: Dict[int, Task] = {}
+        self._tasks: Dict[str, Dict[int, Task]] = {}  # Changed: Now keyed by username -> {task_id -> task}
         self._users: Dict[str, User] = {}
-        self._next_id = 1
+        self._next_global_id = 1  # Changed: Global ID counter
         self.load_from_file()
 
     def _serialize_task(self, task: Task) -> dict:
@@ -67,10 +67,16 @@ class FileTaskStore:
 
     def save_to_file(self):
         """Save tasks and users to JSON files"""
-        # Save tasks
-        tasks_data = {str(task_id): self._serialize_task(task) for task_id, task in self._tasks.items()}
+        # Save tasks - convert user-specific structure to flat structure for file storage
+        all_tasks_data = {}
+        for username, user_tasks in self._tasks.items():
+            for task_id, task in user_tasks.items():
+                # Store task with username prefix to maintain uniqueness across users
+                prefixed_key = f"{username}:{task_id}"
+                all_tasks_data[prefixed_key] = self._serialize_task(task)
+
         with open(self.tasks_file, 'w', encoding='utf-8') as f:
-            json.dump(tasks_data, f, indent=2)
+            json.dump(all_tasks_data, f, indent=2)
 
         # Save users
         users_data = {username: self._serialize_user(user) for username, user in self._users.items()}
@@ -85,12 +91,27 @@ class FileTaskStore:
                 with open(self.tasks_file, 'r', encoding='utf-8') as f:
                     tasks_data = json.load(f)
 
-                for task_id_str, task_data in tasks_data.items():
+                for prefixed_key, task_data in tasks_data.items():
+                    # Handle both old format (just ID) and new format (username:ID)
+                    if ':' in prefixed_key:
+                        # New format: username:task_id
+                        username, task_id_str = prefixed_key.split(':', 1)
+                        task_id = int(task_id_str)
+                    else:
+                        # Old format: just task_id (for backward compatibility)
+                        username = "default_user"  # For backward compatibility
+                        task_id = int(prefixed_key)
+
                     task = self._deserialize_task(task_data)
-                    self._tasks[int(task_id_str)] = task
-                    # Update next_id to ensure sequential IDs continue properly
-                    if task.id >= self._next_id:
-                        self._next_id = task.id + 1
+
+                    # Initialize user's task dict if it doesn't exist
+                    if username not in self._tasks:
+                        self._tasks[username] = {}
+
+                    self._tasks[username][task_id] = task
+                    # Update global ID to ensure sequential IDs continue properly
+                    if task.id >= self._next_global_id:
+                        self._next_global_id = task.id + 1
             except (json.JSONDecodeError, KeyError, ValueError) as e:
                 print(f"Warning: Could not load tasks from {self.tasks_file}: {e}")
                 self._tasks = {}
@@ -108,92 +129,101 @@ class FileTaskStore:
                 print(f"Warning: Could not load users from {self.users_file}: {e}")
                 self._users = {}
 
-    def add_task(self, task: Task) -> Task:
+    def add_task(self, task: Task, username: str = "default_user") -> Task:
         """
-        Add a new task to the store with sequential ID assignment
+        Add a new task to the store with sequential ID assignment for a specific user
         """
+        # Initialize user's task dict if it doesn't exist
+        if username not in self._tasks:
+            self._tasks[username] = {}
+        
         # Assign the next available ID
-        task.id = self._next_id
-        self._tasks[task.id] = task
-        self._next_id += 1
+        task.id = self._next_global_id
+        self._tasks[username][task.id] = task
+        self._next_global_id += 1
         self.save_to_file()  # Save to file after modification
         return task
 
-    def get_task(self, task_id: int) -> Optional[Task]:
+    def get_task(self, task_id: int, username: str = "default_user") -> Optional[Task]:
         """
-        Get a task by ID
+        Get a task by ID for a specific user
         """
-        return self._tasks.get(task_id)
+        if username in self._tasks:
+            return self._tasks[username].get(task_id)
+        return None
 
-    def get_all_tasks(self) -> List[Task]:
+    def get_all_tasks(self, username: str = "default_user") -> List[Task]:
         """
-        Get all tasks
+        Get all tasks for a specific user
         """
-        return list(self._tasks.values())
+        if username in self._tasks:
+            return list(self._tasks[username].values())
+        return []
 
-    def update_task(self, task_id: int, title: Optional[str] = None, description: Optional[str] = None) -> Optional[Task]:
+    def update_task(self, task_id: int, username: str, title: Optional[str] = None, description: Optional[str] = None) -> Optional[Task]:
         """
-        Update an existing task, preserving unchanged fields
+        Update an existing task for a specific user, preserving unchanged fields
         """
-        task = self.get_task(task_id)
+        task = self.get_task(task_id, username)
         if task is None:
             return None
 
         task.update(title=title, description=description)
-        self._tasks[task_id] = task
+        self._tasks[username][task_id] = task
         self.save_to_file()  # Save to file after modification
         return task
 
-    def delete_task(self, task_id: int) -> bool:
+    def delete_task(self, task_id: int, username: str) -> bool:
         """
-        Delete a task by ID
+        Delete a task by ID for a specific user
         """
-        if task_id in self._tasks:
-            del self._tasks[task_id]
+        if username in self._tasks and task_id in self._tasks[username]:
+            del self._tasks[username][task_id]
             self.save_to_file()  # Save to file after modification
             return True
         return False
 
-    def mark_complete(self, task_id: int) -> Optional[Task]:
+    def mark_complete(self, task_id: int, username: str) -> Optional[Task]:
         """
-        Mark a task as complete
+        Mark a task as complete for a specific user
         """
-        task = self.get_task(task_id)
+        task = self.get_task(task_id, username)
         if task is None:
             return None
 
         task.mark_complete()
-        self._tasks[task_id] = task
+        self._tasks[username][task_id] = task
         self.save_to_file()  # Save to file after modification
         return task
 
-    def mark_incomplete(self, task_id: int) -> Optional[Task]:
+    def mark_incomplete(self, task_id: int, username: str) -> Optional[Task]:
         """
-        Mark a completed task as incomplete
+        Mark a completed task as incomplete for a specific user
         """
-        task = self.get_task(task_id)
+        task = self.get_task(task_id, username)
         if task is None:
             return None
 
         task.mark_incomplete()
-        self._tasks[task_id] = task
+        self._tasks[username][task_id] = task
         self.save_to_file()  # Save to file after modification
         return task
 
-    def search_tasks_by_id(self, task_id: int) -> Optional[Task]:
+    def search_tasks_by_id(self, task_id: int, username: str = "default_user") -> Optional[Task]:
         """
-        Search for a task by ID
+        Search for a task by ID for a specific user
         """
-        return self.get_task(task_id)
+        return self.get_task(task_id, username)
 
-    def search_tasks_by_title(self, title: str) -> List[Task]:
+    def search_tasks_by_title(self, title: str, username: str = "default_user") -> List[Task]:
         """
-        Search for tasks by title (case-insensitive partial match)
+        Search for tasks by title (case-insensitive partial match) for a specific user
         """
         matching_tasks = []
-        for task in self._tasks.values():
-            if title.lower() in task.title.lower():
-                matching_tasks.append(task)
+        if username in self._tasks:
+            for task in self._tasks[username].values():
+                if title.lower() in task.title.lower():
+                    matching_tasks.append(task)
         return matching_tasks
 
     def add_user(self, user: User) -> User:
@@ -210,11 +240,13 @@ class FileTaskStore:
         """
         return self._users.get(username)
 
-    def get_total_task_count(self) -> int:
+    def get_total_task_count(self, username: str = "default_user") -> int:
         """
-        Get the total count of tasks
+        Get the total count of tasks for a specific user
         """
-        return len(self._tasks)
+        if username in self._tasks:
+            return len(self._tasks[username])
+        return 0
 
 
 # Global instance of the file-based store

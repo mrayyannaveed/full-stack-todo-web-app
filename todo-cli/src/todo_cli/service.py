@@ -17,59 +17,59 @@ class TaskService:
 
         # Define API routes
         @self.app.post("/tasks", response_model=Task, status_code=201)
-        def create_task(request: CreateTaskRequest):
-            return self.create_task(request)
+        def create_task(request: CreateTaskRequest, username: str):
+            return self.create_task(request, username)
 
         @self.app.get("/tasks", response_model=List[Task])
-        def get_all_tasks():
-            return self.get_all_tasks()
+        def get_all_tasks(username: str):
+            return self.get_all_tasks(username)
 
         @self.app.get("/tasks/{task_id}", response_model=Task)
-        def get_task(task_id: int):
-            task = self.get_task(task_id)
+        def get_task(task_id: int, username: str):
+            task = self.get_task(task_id, username)
             if not task:
                 raise HTTPException(status_code=404, detail="Task not found")
             return task
 
         @self.app.put("/tasks/{task_id}", response_model=Task)
-        def update_task(task_id: int, request: UpdateTaskRequest):
+        def update_task(task_id: int, username: str, request: UpdateTaskRequest):
             # Validate the request before attempting to update
             if request.title is not None and len(request.title.strip()) == 0:
                 raise HTTPException(status_code=400, detail="Title cannot be empty")
 
-            updated_task = self.update_task(task_id, request.title, request.description)
+            updated_task = self.update_task(task_id, username, request.title, request.description)
             if not updated_task:
                 raise HTTPException(status_code=404, detail="Task not found")
             return updated_task
 
         @self.app.delete("/tasks/{task_id}", status_code=204)
-        def delete_task(task_id: int):
-            success = self.delete_task(task_id)
+        def delete_task(task_id: int, username: str):
+            success = self.delete_task(task_id, username)
             if not success:
                 raise HTTPException(status_code=404, detail="Task not found")
             return {"detail": "Task deleted successfully"}
 
         @self.app.post("/tasks/{task_id}/complete", response_model=Task)
-        def mark_complete(task_id: int):
-            task = self.mark_complete(task_id)
+        def mark_complete(task_id: int, username: str):
+            task = self.mark_complete(task_id, username)
             if not task:
                 raise HTTPException(status_code=404, detail="Task not found")
             return task
 
         @self.app.post("/tasks/{task_id}/incomplete", response_model=Task)
-        def mark_incomplete(task_id: int):
-            task = self.mark_incomplete(task_id)
+        def mark_incomplete(task_id: int, username: str):
+            task = self.mark_incomplete(task_id, username)
             if not task:
                 raise HTTPException(status_code=404, detail="Task not found")
             return task
 
         @self.app.get("/tasks/search", response_model=List[Task])
-        def search_tasks(search_term: str, search_by: str = "id_or_title"):
-            return self.search_tasks(search_term, search_by)
+        def search_tasks(search_term: str, username: str, search_by: str = "id_or_title"):
+            return self.search_tasks(search_term, username, search_by)
 
-    def create_task(self, request: CreateTaskRequest) -> Task:
+    def create_task(self, request: CreateTaskRequest, username: str) -> Task:
         """
-        Create a new task with sequential ID assignment and due date handling
+        Create a new task with sequential ID assignment and due date handling for a specific user
         """
         # Parse due date if provided
         due_date = None
@@ -90,52 +90,52 @@ class TaskService:
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
-        return task_store.add_task(new_task)
+        return task_store.add_task(new_task, username)
 
-    def get_all_tasks(self) -> List[Task]:
+    def get_all_tasks(self, username: str) -> List[Task]:
         """
-        Get all tasks
+        Get all tasks for a specific user
         """
-        return task_store.get_all_tasks()
+        return task_store.get_all_tasks(username)
 
-    def get_task(self, task_id: int) -> Optional[Task]:
+    def get_task(self, task_id: int, username: str) -> Optional[Task]:
         """
-        Get a specific task by ID
+        Get a specific task by ID for a specific user
         """
-        return task_store.get_task(task_id)
+        return task_store.get_task(task_id, username)
 
-    def update_task(self, task_id: int, title: Optional[str] = None, description: Optional[str] = None) -> Optional[Task]:
+    def update_task(self, task_id: int, username: str, title: Optional[str] = None, description: Optional[str] = None) -> Optional[Task]:
         """
-        Update an existing task, preserving unchanged fields
+        Update an existing task for a specific user, preserving unchanged fields
         """
-        return task_store.update_task(task_id, title, description)
+        return task_store.update_task(task_id, username, title, description)
 
-    def delete_task(self, task_id: int) -> bool:
+    def delete_task(self, task_id: int, username: str) -> bool:
         """
-        Delete a task by ID
+        Delete a task by ID for a specific user
         """
-        return task_store.delete_task(task_id)
+        return task_store.delete_task(task_id, username)
 
-    def mark_complete(self, task_id: int) -> Optional[Task]:
+    def mark_complete(self, task_id: int, username: str) -> Optional[Task]:
         """
-        Mark a task as complete
+        Mark a task as complete for a specific user
         """
-        return task_store.mark_complete(task_id)
+        return task_store.mark_complete(task_id, username)
 
-    def mark_incomplete(self, task_id: int) -> Optional[Task]:
+    def mark_incomplete(self, task_id: int, username: str) -> Optional[Task]:
         """
-        Mark a completed task as incomplete
+        Mark a completed task as incomplete for a specific user
         """
-        return task_store.mark_incomplete(task_id)
+        return task_store.mark_incomplete(task_id, username)
 
-    def search_tasks(self, search_term: str, search_by: str = "id_or_title") -> List[Task]:
+    def search_tasks(self, search_term: str, username: str, search_by: str = "id_or_title") -> List[Task]:
         """
-        Search for tasks by ID or title based on search_by parameter
+        Search for tasks by ID or title based on search_by parameter for a specific user
         """
         if search_by == "id":
             try:
                 task_id = int(search_term)
-                task = task_store.search_tasks_by_id(task_id)
+                task = task_store.search_tasks_by_id(task_id, username)
                 if task:
                     return [task]
                 else:
@@ -144,37 +144,37 @@ class TaskService:
                 # If search_term is not a valid integer for ID search, return empty list
                 return []
         elif search_by == "title":
-            return task_store.search_tasks_by_title(search_term)
+            return task_store.search_tasks_by_title(search_term, username)
         elif search_by == "id_or_title":
             # Try both ID and title search
             try:
                 task_id = int(search_term)
-                task = task_store.search_tasks_by_id(task_id)
+                task = task_store.search_tasks_by_id(task_id, username)
                 if task:
                     return [task]
             except ValueError:
                 # If not a valid ID, continue with title search
                 pass
             # Combine results from both searches
-            title_results = task_store.search_tasks_by_title(search_term)
+            title_results = task_store.search_tasks_by_title(search_term, username)
             return title_results
         else:
             # Default to searching both ID and title
             try:
                 task_id = int(search_term)
-                task = task_store.search_tasks_by_id(task_id)
+                task = task_store.search_tasks_by_id(task_id, username)
                 if task:
                     return [task]
             except ValueError:
                 pass
-            title_results = task_store.search_tasks_by_title(search_term)
+            title_results = task_store.search_tasks_by_title(search_term, username)
             return title_results
 
-    def get_total_task_count(self) -> int:
+    def get_total_task_count(self, username: str) -> int:
         """
-        Get the total count of tasks
+        Get the total count of tasks for a specific user
         """
-        return task_store.get_total_task_count()
+        return task_store.get_total_task_count(username)
 
     def add_user(self, user: User) -> User:
         """
